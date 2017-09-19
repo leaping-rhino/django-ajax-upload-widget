@@ -8,6 +8,10 @@
             changeButtonText: 'Change',
             removeButtonText: 'Remove',
             previewAreaClass: 'ajax-upload-preview-area',
+            buttonAreaClass: 'col',
+            changeButtonClass: 'btn btn-primary',
+            removeButtonClass: 'btn btn-danger',
+            separatorAreaClass: '',
             previewFilenameLength: 30,
             onUpload: null, // right before uploading to the server
             onComplete: null,
@@ -34,7 +38,7 @@
         this.$hiddenElement = $('<input type="hidden"/>')
             .attr('name', this.name)
             .val(this.$element.data('filename'));
-        this.$element.attr('name', ''); // because we don't want to conflict with our hidden field
+        this.$element.attr('name', this.$element.data('name'));
         this.$element.after(this.$hiddenElement);
 
         // Initialize preview area and action buttons
@@ -45,15 +49,19 @@
         this.$element.on('change', function(evt) {
             self.upload();
         });
-        this.$changeButton = $('<button type="button" class="btn-change"></button>')
+        this.$separatorArea = $('<div class="'+this.options.separatorAreaClass+'"></div>');
+        this.$element.after(this.$separatorArea);
+        this.$buttonArea = $('<div class="'+this.options.buttonAreaClass+'"></div>');
+        this.$separatorArea.after(this.$buttonArea);
+        this.$changeButton = $('<button type="button" class="'+this.options.changeButtonClass+'"></button>')
             .text(this.options.changeButtonText)
             .on('click', function(evt) {
-                self.$element.show();
-                $(this).hide();
+                self.$element.trigger('click');
+                //$(this).hide();
             });
-        this.$element.after(this.$changeButton);
+        this.$buttonArea.append(this.$changeButton);
 
-        this.$removeButton = $('<button type="button" class="btn-remove"></button>')
+        this.$removeButton = $('<button type="button" class="'+this.options.removeButtonClass+'"></button>')
             .text(this.options.removeButtonText)
             .on('click', function(evt) {
                 if(self.options.onRemove) {
@@ -61,6 +69,7 @@
                     if(result === false) return;
                 }
                 self.$hiddenElement.val('');
+                self.$element.data('thumbnail', '');
                 self.displaySelection();
             });
         this.$changeButton.after(this.$removeButton);
@@ -75,10 +84,14 @@
             var result = this.options.onUpload.call(this);
             if(result === false) return;
         }
-        this.$element.attr('name', 'file');
+        // this.$element.attr('name', 'file');
+        this.displaySpinner();
         $.ajax(this.$element.data('upload-url'), {
             iframe: true,
             files: this.$element,
+            data: {
+                'csrfmiddlewaretoken': this.$element.data('csrfmiddlewaretoken')
+            },
             processData: false,
             type: 'POST',
             dataType: 'json',
@@ -101,6 +114,7 @@
             this.$hiddenElement.val(data.path);
             var tmp = this.$element;
             this.$element = this.$element.clone(true).val('');
+            this.$element.data('thumbnail', data.thumbnail);
             tmp.replaceWith(this.$element);
             this.displaySelection();
             if(this.options.onComplete) this.options.onComplete.call(this, data.path);
@@ -117,7 +131,7 @@
     };
 
     AjaxUploadWidget.prototype.displaySelection = function() {
-        var filename = this.$hiddenElement.val();
+        var filename = this.$element.data('thumbnail') || this.$hiddenElement.val();
 
         if(filename !== '') {
             this.$previewArea.empty();
@@ -125,7 +139,7 @@
 
             this.$previewArea.show();
             this.$changeButton.show();
-            if(this.$element.data('required') === 'True') {
+            if(this.$element.data('required') == 'True') {
                 this.$removeButton.hide();
             } else {
                 this.$removeButton.show();
@@ -139,10 +153,17 @@
         }
     };
 
+    AjaxUploadWidget.prototype.displaySpinner = function() {
+            this.$previewArea.empty();
+            this.$previewArea.append('<div class="mx-auto align-middle text-center"><i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Uploading...</span></div>');
+            this.$previewArea.show();
+    };
+
     AjaxUploadWidget.prototype.generateFilePreview = function(filename) {
         // Returns the html output for displaying the given uploaded filename to the user.
-        var prettyFilename = this.prettifyFilename(filename);
-        var output = '<a href="'+filename+'" target="_blank">'+prettyFilename+'';
+        // var prettyFilename = this.prettifyFilename(filename);
+        // var output = '<a href="'+filename+'" target="_blank">'+prettyFilename+'';
+        var output = '<a href="'+filename+'" target="_blank">';
         $.each(['jpg', 'jpeg', 'png', 'gif'], function(i, ext) {
             if(filename.toLowerCase().slice(-ext.length) == ext) {
                 output += '<img src="'+filename+'"/>';
