@@ -144,11 +144,13 @@
             } else {
                 this.$removeButton.show();
             }
+            this.$element.prop('required', false);
             this.$element.hide();
         } else {
             this.$previewArea.slideUp();
             this.$changeButton.hide();
             this.$removeButton.hide();
+            this.$element.prop('required', this.$element.data('required'));
             this.$element.show();
         }
     };
